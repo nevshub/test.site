@@ -13,6 +13,10 @@
       font-family: Arial, sans-serif;
       text-align: center;
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 40px;
     }
     h1, h2 { margin-bottom: 20px; }
     #player { margin-bottom: 20px; }
@@ -31,32 +35,20 @@
     #customization { margin: 30px 0; text-align: left; display: inline-block; }
     #customization label { display: block; margin-bottom: 10px; }
     #donationSection, #progressSection { margin-top: 30px; }
-    
-    /* Fullscreen button style */
     #fullscreenBtn {
       position: absolute;
       top: 10px;
       right: 10px;
       z-index: 10;
-      background-color: #ff6600;
-      color: #fff;
-      border: none;
-      padding: 8px 12px;
-      cursor: pointer;
-      border-radius: 5px;
+      padding: 5px 10px;
+      font-size: 0.9em;
+      border-radius: 4px;
     }
-    #fullscreenBtn:hover { opacity: 0.85; }
-    
-    /* Canvas */
-    canvas {
-      display: block;
-      margin: 20px auto;
-      background-color: #111;
-      border-radius: 8px;
+    .visualizer-container {
+      position: relative;
+      display: inline-block;
       width: 100%;
       max-width: 700px;
-      height: 400px;
-      position: relative;
     }
   </style>
 </head>
@@ -71,9 +63,9 @@
   </div>
 
   <!-- Visualizer -->
-  <div style="position: relative; width: 100%;">
+  <div class="visualizer-container">
     <canvas id="visualizer"></canvas>
-    <button id="fullscreenBtn">Fullscreen</button>
+    <button id="fullscreenBtn" class="button">Fullscreen</button>
   </div>
 
   <!-- Customization Panel -->
@@ -124,15 +116,23 @@
     const ctx = canvas.getContext("2d");
     const fullscreenBtn = document.getElementById("fullscreenBtn");
 
-    canvas.width = window.innerWidth;
-    canvas.height = 400;
+    function resizeCanvas(fullscreen = false) {
+      if (fullscreen) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight * 0.7;
+      } else {
+        canvas.width = Math.min(window.innerWidth, 700);
+        canvas.height = 400;
+      }
+    }
+
+    resizeCanvas();
 
     let audioCtx, analyser, source, dataArray;
     const smoothedValues = [];
     let beatLevel = 0;
     let rotationAngle = 0;
     let hueOffset = 0;
-
     const sparkles = [];
 
     fileInput.addEventListener("change", () => {
@@ -164,7 +164,6 @@
       }
     }
 
-    // Fullscreen toggle
     fullscreenBtn.addEventListener("click", () => {
       if (!document.fullscreenElement) {
         canvas.parentElement.requestFullscreen();
@@ -174,12 +173,25 @@
     });
 
     document.addEventListener("fullscreenchange", () => {
-      // Keep button visible in fullscreen
       if (document.fullscreenElement) {
         fullscreenBtn.textContent = "Minimize";
+        resizeCanvas(true);
+        canvas.style.display = "block";
+        canvas.parentElement.style.display = "flex";
+        canvas.parentElement.style.justifyContent = "center";
+        canvas.parentElement.style.alignItems = "center";
+        canvas.parentElement.style.height = "100%";
       } else {
         fullscreenBtn.textContent = "Fullscreen";
+        resizeCanvas(false);
+        canvas.parentElement.style.display = "inline-block";
+        canvas.parentElement.style.height = "auto";
       }
+    });
+
+    window.addEventListener("resize", () => {
+      if (!document.fullscreenElement) resizeCanvas(false);
+      else resizeCanvas(true);
     });
 
     function draw() {
@@ -187,7 +199,6 @@
       if (!analyser) return;
 
       analyser.getByteFrequencyData(dataArray);
-
       const bgColor = document.getElementById("bgColor").value;
       const barWidth = document.getElementById("barWidth").value;
       const sensitivity = document.getElementById("sensitivity").value;
@@ -240,8 +251,8 @@
         if (!sparkles[i]) {
           sparkles[i] = { alpha: 0, angle: (i / sparkleCount) * 2*Math.PI };
         }
-        sparkles[i].alpha += (Math.random() * 0.05 + highHatSum*0.2 - sparkles[i].alpha) * 0.1;
 
+        sparkles[i].alpha += (Math.random() * 0.05 + highHatSum*0.2 - sparkles[i].alpha) * 0.1;
         const radius = baseRadius + 120 + Math.sin(Date.now()/200 + i) * 10 + highHatSum*50;
         const hue = (hueOffset + i*5) % 360;
         ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${sparkles[i].alpha})`;
