@@ -31,19 +31,33 @@
     #customization { margin: 30px 0; text-align: left; display: inline-block; }
     #customization label { display: block; margin-bottom: 10px; }
     #donationSection, #progressSection { margin-top: 30px; }
+    
+    /* Fullscreen button style */
     #fullscreenBtn {
       position: absolute;
       top: 10px;
       right: 10px;
-      z-index: 100;
+      z-index: 10;
       background-color: #ff6600;
+      color: #fff;
       border: none;
       padding: 8px 12px;
-      border-radius: 6px;
       cursor: pointer;
-      color: #fff;
+      border-radius: 5px;
     }
-    #fullscreenBtn:hover { background-color: #ff8533; }
+    #fullscreenBtn:hover { opacity: 0.85; }
+    
+    /* Canvas */
+    canvas {
+      display: block;
+      margin: 20px auto;
+      background-color: #111;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 700px;
+      height: 400px;
+      position: relative;
+    }
   </style>
 </head>
 <body>
@@ -57,8 +71,10 @@
   </div>
 
   <!-- Visualizer -->
-  <canvas id="visualizer"></canvas>
-  <button id="fullscreenBtn">Fullscreen</button>
+  <div style="position: relative; width: 100%;">
+    <canvas id="visualizer"></canvas>
+    <button id="fullscreenBtn">Fullscreen</button>
+  </div>
 
   <!-- Customization Panel -->
   <div id="customization">
@@ -74,10 +90,6 @@
     <label>
       Sensitivity:
       <input type="range" id="sensitivity" min="10" max="256" value="64">
-    </label>
-    <label>
-      Height Scale:
-      <input type="range" id="heightScale" min="0.2" max="1.5" step="0.05" value="1">
     </label>
   </div>
 
@@ -111,7 +123,6 @@
     const canvas = document.getElementById("visualizer");
     const ctx = canvas.getContext("2d");
     const fullscreenBtn = document.getElementById("fullscreenBtn");
-    const heightScaleInput = document.getElementById("heightScale");
 
     canvas.width = window.innerWidth;
     canvas.height = 400;
@@ -122,7 +133,6 @@
     let rotationAngle = 0;
     let hueOffset = 0;
 
-    // Sparkle storage for fade effect
     const sparkles = [];
 
     fileInput.addEventListener("change", () => {
@@ -154,6 +164,24 @@
       }
     }
 
+    // Fullscreen toggle
+    fullscreenBtn.addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        canvas.parentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    });
+
+    document.addEventListener("fullscreenchange", () => {
+      // Keep button visible in fullscreen
+      if (document.fullscreenElement) {
+        fullscreenBtn.textContent = "Minimize";
+      } else {
+        fullscreenBtn.textContent = "Fullscreen";
+      }
+    });
+
     function draw() {
       requestAnimationFrame(draw);
       if (!analyser) return;
@@ -161,27 +189,16 @@
       analyser.getByteFrequencyData(dataArray);
 
       const bgColor = document.getElementById("bgColor").value;
-      const barWidth = parseFloat(document.getElementById("barWidth").value);
-      const sensitivity = parseFloat(document.getElementById("sensitivity").value);
-      const heightScale = parseFloat(heightScaleInput.value);
+      const barWidth = document.getElementById("barWidth").value;
+      const sensitivity = document.getElementById("sensitivity").value;
 
-      // Update canvas height with heightScale
-      canvas.height = (document.fullscreenElement ? screen.height : 400) * heightScale;
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      const baseRadius = 80 + beatLevel * 100 * heightScale;
-      const totalBars = 60;
-
-      // Background
       ctx.fillStyle = bgColor + 'DD';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Smooth values
       for (let i = 0; i < dataArray.length; i++) {
         smoothedValues[i] += (dataArray[i] - smoothedValues[i]) * 0.1;
       }
 
-      // Bass detection
       let bassSum = 0;
       const bassCount = Math.floor(dataArray.length / 10);
       for (let i = 0; i < bassCount; i++) bassSum += smoothedValues[i];
@@ -190,11 +207,15 @@
       rotationAngle += 0.01 + beatLevel * 0.05;
       hueOffset += 1 + beatLevel * 3;
 
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const baseRadius = 80 + beatLevel * 100;
+      const totalBars = 60;
+
       ctx.save();
       ctx.translate(centerX, centerY);
       ctx.rotate(rotationAngle);
 
-      // Electric circle bars
       for (let i = 0; i < totalBars; i++) {
         const bassIndex = Math.floor(i * 2);
         const hiHatIndex = dataArray.length - totalBars + i;
@@ -213,12 +234,14 @@
       }
       ctx.restore();
 
-      // High-hat sparkles
       const highHatSum = dataArray.slice(-60).reduce((a,b) => a+b,0) / 60 / 255;
       const sparkleCount = 40;
       for (let i = 0; i < sparkleCount; i++) {
-        if (!sparkles[i]) sparkles[i] = { alpha: 0, angle: (i / sparkleCount) * 2*Math.PI };
+        if (!sparkles[i]) {
+          sparkles[i] = { alpha: 0, angle: (i / sparkleCount) * 2*Math.PI };
+        }
         sparkles[i].alpha += (Math.random() * 0.05 + highHatSum*0.2 - sparkles[i].alpha) * 0.1;
+
         const radius = baseRadius + 120 + Math.sin(Date.now()/200 + i) * 10 + highHatSum*50;
         const hue = (hueOffset + i*5) % 360;
         ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${sparkles[i].alpha})`;
@@ -229,23 +252,6 @@
     }
 
     draw();
-
-    // Fullscreen toggle
-    fullscreenBtn.addEventListener("click", () => {
-      if (!document.fullscreenElement) {
-        canvas.requestFullscreen();
-      } else {
-        document.exitFullscreen();
-      }
-    });
-
-    window.addEventListener("resize", () => {
-      canvas.width = window.innerWidth;
-    });
-
-    document.addEventListener("fullscreenchange", () => {
-      canvas.width = window.innerWidth;
-    });
   </script>
 </body>
 </html>
