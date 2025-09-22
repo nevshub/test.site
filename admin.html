@@ -13,13 +13,9 @@
       font-family: Arial, sans-serif;
       text-align: center;
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding-top: 40px;
     }
     h1, h2 { margin-bottom: 20px; }
-    #player { margin-bottom: 20px; }
+    #player { margin-bottom: 20px; position: relative; }
     #playlist { margin-top: 10px; }
     .button {
       background-color: #ff6600;
@@ -35,21 +31,20 @@
     #customization { margin: 30px 0; text-align: left; display: inline-block; }
     #customization label { display: block; margin-bottom: 10px; }
     #donationSection, #progressSection { margin-top: 30px; }
-    #fullscreenBtn {
+    #fullscreenBtn, #minimizeBtn {
       position: absolute;
       top: 10px;
       right: 10px;
       z-index: 10;
-      padding: 5px 10px;
+      padding: 5px 12px;
       font-size: 0.9em;
-      border-radius: 4px;
+      border-radius: 5px;
+      background-color: #ff6600;
+      border: none;
+      color: #fff;
+      cursor: pointer;
     }
-    .visualizer-container {
-      position: relative;
-      display: inline-block;
-      width: 100%;
-      max-width: 700px;
-    }
+    #minimizeBtn { display: none; }
   </style>
 </head>
 <body>
@@ -60,13 +55,12 @@
     <audio id="audio" controls></audio>
     <input type="file" id="fileInput" accept="audio/*" multiple>
     <div id="playlist"></div>
+    <button id="fullscreenBtn">Fullscreen</button>
+    <button id="minimizeBtn">Minimize</button>
   </div>
 
   <!-- Visualizer -->
-  <div class="visualizer-container">
-    <canvas id="visualizer"></canvas>
-    <button id="fullscreenBtn" class="button">Fullscreen</button>
-  </div>
+  <canvas id="visualizer"></canvas>
 
   <!-- Customization Panel -->
   <div id="customization">
@@ -100,7 +94,7 @@
     <h2>What’s in Progress</h2>
     <ul>
       <li>Donation button integration with CashApp is prepared and ready to be connected.</li>
-      <li>A message box for submitting requests — updates or expansions to the website — will be added to the Admin Panel soon.</li>
+      <li>A message box for submitting requests will be added to the Admin Panel soon.</li>
     </ul>
   </div>
 
@@ -115,18 +109,7 @@
     const canvas = document.getElementById("visualizer");
     const ctx = canvas.getContext("2d");
     const fullscreenBtn = document.getElementById("fullscreenBtn");
-
-    function resizeCanvas(fullscreen = false) {
-      if (fullscreen) {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight * 0.7;
-      } else {
-        canvas.width = Math.min(window.innerWidth, 700);
-        canvas.height = 400;
-      }
-    }
-
-    resizeCanvas();
+    const minimizeBtn = document.getElementById("minimizeBtn");
 
     let audioCtx, analyser, source, dataArray;
     const smoothedValues = [];
@@ -134,6 +117,14 @@
     let rotationAngle = 0;
     let hueOffset = 0;
     const sparkles = [];
+    let isFullscreen = false;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = isFullscreen ? window.innerHeight : 400;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
 
     fileInput.addEventListener("change", () => {
       playlist.innerHTML = "";
@@ -164,35 +155,19 @@
       }
     }
 
-    fullscreenBtn.addEventListener("click", () => {
-      if (!document.fullscreenElement) {
-        canvas.parentElement.requestFullscreen();
-      } else {
-        document.exitFullscreen();
-      }
-    });
+    fullscreenBtn.onclick = () => {
+      isFullscreen = true;
+      resizeCanvas();
+      fullscreenBtn.style.display = 'none';
+      minimizeBtn.style.display = 'block';
+    };
 
-    document.addEventListener("fullscreenchange", () => {
-      if (document.fullscreenElement) {
-        fullscreenBtn.textContent = "Minimize";
-        resizeCanvas(true);
-        canvas.style.display = "block";
-        canvas.parentElement.style.display = "flex";
-        canvas.parentElement.style.justifyContent = "center";
-        canvas.parentElement.style.alignItems = "center";
-        canvas.parentElement.style.height = "100%";
-      } else {
-        fullscreenBtn.textContent = "Fullscreen";
-        resizeCanvas(false);
-        canvas.parentElement.style.display = "inline-block";
-        canvas.parentElement.style.height = "auto";
-      }
-    });
-
-    window.addEventListener("resize", () => {
-      if (!document.fullscreenElement) resizeCanvas(false);
-      else resizeCanvas(true);
-    });
+    minimizeBtn.onclick = () => {
+      isFullscreen = false;
+      resizeCanvas();
+      fullscreenBtn.style.display = 'block';
+      minimizeBtn.style.display = 'none';
+    };
 
     function draw() {
       requestAnimationFrame(draw);
@@ -200,11 +175,14 @@
 
       analyser.getByteFrequencyData(dataArray);
       const bgColor = document.getElementById("bgColor").value;
-      const barWidth = document.getElementById("barWidth").value;
-      const sensitivity = document.getElementById("sensitivity").value;
+      const barWidthInput = document.getElementById("barWidth").value;
+      const sensitivityInput = document.getElementById("sensitivity").value;
 
       ctx.fillStyle = bgColor + 'DD';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const widthScale = canvas.width / 700;
+      const heightScale = canvas.height / 400;
 
       for (let i = 0; i < dataArray.length; i++) {
         smoothedValues[i] += (dataArray[i] - smoothedValues[i]) * 0.1;
@@ -220,7 +198,7 @@
 
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
-      const baseRadius = 80 + beatLevel * 100;
+      const baseRadius = (80 + beatLevel * 100) * heightScale;
       const totalBars = 60;
 
       ctx.save();
@@ -231,16 +209,16 @@
         const bassIndex = Math.floor(i * 2);
         const hiHatIndex = dataArray.length - totalBars + i;
         const value = (smoothedValues[bassIndex] + smoothedValues[hiHatIndex]) / 2;
-        const barLength = value * (sensitivity / 64);
+        const barLength = value * (sensitivityInput / 64) * heightScale;
         const angle = (i / totalBars) * 2 * Math.PI;
         const hue = (hueOffset + value) % 360;
 
         ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-        ctx.shadowBlur = 15 + beatLevel * 30;
+        ctx.shadowBlur = 15 * heightScale + beatLevel * 30;
         ctx.shadowColor = ctx.fillStyle;
 
         ctx.rotate(angle);
-        ctx.fillRect(baseRadius, -barWidth/2, barLength, barWidth);
+        ctx.fillRect(baseRadius, -barWidthInput/2 * heightScale, barLength, barWidthInput * heightScale);
         ctx.rotate(-angle);
       }
       ctx.restore();
@@ -248,21 +226,19 @@
       const highHatSum = dataArray.slice(-60).reduce((a,b) => a+b,0) / 60 / 255;
       const sparkleCount = 40;
       for (let i = 0; i < sparkleCount; i++) {
-        if (!sparkles[i]) {
-          sparkles[i] = { alpha: 0, angle: (i / sparkleCount) * 2*Math.PI };
-        }
+        if (!sparkles[i]) sparkles[i] = { alpha: 0, angle: (i / sparkleCount) * 2*Math.PI };
 
         sparkles[i].alpha += (Math.random() * 0.05 + highHatSum*0.2 - sparkles[i].alpha) * 0.1;
-        const radius = baseRadius + 120 + Math.sin(Date.now()/200 + i) * 10 + highHatSum*50;
+        const radius = baseRadius + 120 * heightScale + Math.sin(Date.now()/200 + i) * 10 * heightScale + highHatSum * 50 * heightScale;
         const hue = (hueOffset + i*5) % 360;
         ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${sparkles[i].alpha})`;
         ctx.beginPath();
-        ctx.arc(centerX + radius * Math.cos(sparkles[i].angle), centerY + radius * Math.sin(sparkles[i].angle), 3, 0, 2*Math.PI);
-        ctx.fill();
-      }
-    }
+ctx.arc(centerX + radius * Math.cos(sparkles[i].angle), centerY + radius * Math.sin(sparkles[i].angle), 3 * heightScale, 0, 2*Math.PI);
+ctx.fill();
+}
+}
 
-    draw();
+draw();
   </script>
 </body>
 </html>
