@@ -1,0 +1,147 @@
+/* ==================== GLOBAL STYLES ==================== */
+/* Mikasa: Ensures consistent layout and font across all pages */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #111;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  text-align: center;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* aligned to top for better readability */
+  align-items: center;
+  padding-top: 40px; /* spacing from top */
+}
+
+a {
+  color: #ff6600;
+  text-decoration: none;
+}
+
+h1 {
+  font-size: 2.5em;
+  margin-bottom: 20px;
+}
+
+h2 {
+  margin-top: 30px;
+  margin-bottom: 10px;
+}
+
+p {
+  max-width: 700px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+/* ==================== BUTTON STYLES ==================== */
+/* Power: Buttons for admin, donations, homepage links */
+.button, #donateButton {
+  background-color: #ff6600;
+  border: none;
+  padding: 12px 28px;
+  color: #fff;
+  cursor: pointer;
+  margin: 10px 5px;
+  border-radius: 8px;
+  font-size: 1.2em;
+  text-decoration: none;
+  transition: background 0.3s, transform 0.2s;
+  display: inline-block;
+}
+
+.button:hover, #donateButton:hover {
+  background-color: #ff8533;
+  transform: scale(1.05);
+}
+
+/* ==================== INPUT / SELECT / TEXTAREA ==================== */
+input[type="color"],
+input[type="range"],
+input[type="text"],
+textarea,
+select {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #555;
+  background-color: #222;
+  color: #fff;
+  font-size: 1em;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ==================== AUDIO / MUSIC PLAYER ==================== */
+audio {
+  margin-top: 15px;
+  width: 100%;
+  max-width: 400px;
+}
+
+#trackList,
+#enhancedTrackList {
+  list-style-type: none;
+  padding: 0;
+}
+
+#trackList li,
+#enhancedTrackList li {
+  margin: 5px 0;
+  text-align: left;
+}
+
+/* Canvas visualizers */
+canvas {
+  margin-top: 20px;
+  background-color: #111;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 700px;
+  height: 150px;
+}
+
+/* ==================== ADMIN / CUSTOMIZATION PANELS ==================== */
+#customization,
+#enhancedPlayer,
+#guestSection,
+#donationSection {
+  margin-top: 30px;
+  padding: 20px;
+  border: 1px solid #333;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 700px;
+  text-align: left;
+}
+
+/* ==================== NOTES PAGE ==================== */
+.notes-section {
+  max-width: 700px;
+  margin: 20px auto;
+  text-align: left;
+  line-height: 1.5;
+}
+
+/* ==================== PROJECTS PAGE ==================== */
+ul {
+  padding-left: 20px;
+  text-align: left;
+  max-width: 700px;
+  margin: 0 auto 20px;
+}
+
+li {
+  margin-bottom: 8px;
+}
+
+/* ==================== GROVE-CODED INTERNAL NOTES ==================== */
+/* Grove Notes (developer-only):
+   Mikasa: Ensures consistent spacing
+   Power: Tracks interactive elements like buttons and audio
+   Himeno: Notes on color palettes and customization
+   Armin: Reminds about mobile-friendly layouts
+   Yūrei: Guides professional readability and Fat Daddy tips
+*/
