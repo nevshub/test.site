@@ -26,34 +26,32 @@
       margin: 5px;
       border-radius: 5px;
       display: inline-block;
-      transition: all 0.3s ease;
     }
-    .button:hover {
-      opacity: 0.85;
-      transform: scale(1.05);
-      box-shadow: 0 0 15px #ff6600;
-      animation: pulse 1s infinite alternate;
-    }
-    @keyframes pulse {
-      from { box-shadow: 0 0 15px #ff6600; }
-      to { box-shadow: 0 0 25px #ff8533; }
-    }
+    .button:hover { opacity: 0.85; }
     #customization { margin: 30px 0; text-align: left; display: inline-block; }
     #customization label { display: block; margin-bottom: 10px; }
     #donationSection, #progressSection { margin-top: 30px; }
-    /* Fullscreen container for visualizer */
-    #visualizerContainer {
-      position: relative;
-      display: inline-block;
-      width: 100%;
-      max-width: 700px;
+
+    /* Fullscreen canvas style */
+    #visualizer.fullscreen {
+      width: 100vw;
+      height: 60vh; /* limit height to prevent vertical stretch */
     }
+
+    /* Fullscreen button position */
     #fullscreenBtn {
       position: absolute;
       top: 10px;
       right: 10px;
       z-index: 10;
+      background-color: #ff6600;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #fff;
     }
+    #fullscreenBtn:hover { opacity: 0.85; }
   </style>
 </head>
 <body>
@@ -66,22 +64,25 @@
     <div id="playlist"></div>
   </div>
 
-  <!-- Visualizer Container -->
-  <div id="visualizerContainer">
+  <!-- Visualizer with fullscreen button -->
+  <div style="position: relative; display: inline-block;">
     <canvas id="visualizer"></canvas>
-    <button id="fullscreenBtn" class="button">Fullscreen</button>
+    <button id="fullscreenBtn">Fullscreen</button>
   </div>
 
   <!-- Customization Panel -->
   <div id="customization">
     <h2>Customization</h2>
-    <label>Background Color:
+    <label>
+      Background Color:
       <input type="color" id="bgColor" value="#111111">
     </label>
-    <label>Bar Width:
+    <label>
+      Bar Width:
       <input type="range" id="barWidth" min="1" max="10" value="4">
     </label>
-    <label>Sensitivity:
+    <label>
+      Sensitivity:
       <input type="range" id="sensitivity" min="10" max="256" value="64">
     </label>
   </div>
@@ -91,7 +92,9 @@
     <h2>Donation Settings</h2>
     <p>Click below to donate via Cash App.</p>
     <button id="donateButton" class="button"
-            onclick="window.open('https://cash.app/$YourCashtag', '_blank')">Donate Now</button>
+            onclick="window.open('https://cash.app/$YourCashtag', '_blank')">
+      Donate Now
+    </button>
   </div>
 
   <!-- What's in Progress -->
@@ -113,19 +116,18 @@
     const playlist = document.getElementById("playlist");
     const canvas = document.getElementById("visualizer");
     const ctx = canvas.getContext("2d");
-
-    const container = document.getElementById("visualizerContainer");
     const fullscreenBtn = document.getElementById("fullscreenBtn");
-    let isFullscreen = false;
-
-    canvas.width = window.innerWidth;
-    canvas.height = 400;
 
     let audioCtx, analyser, source, dataArray;
     const smoothedValues = [];
     let beatLevel = 0;
     let rotationAngle = 0;
     let hueOffset = 0;
+    let isFullscreen = false;
+
+    canvas.width = window.innerWidth;
+    canvas.height = 400;
+
     const sparkles = [];
 
     fileInput.addEventListener("change", () => {
@@ -159,7 +161,7 @@
 
     fullscreenBtn.addEventListener("click", () => {
       if (!isFullscreen) {
-        container.requestFullscreen();
+        canvas.requestFullscreen();
       } else {
         document.exitFullscreen();
       }
@@ -168,6 +170,11 @@
     document.addEventListener('fullscreenchange', () => {
       isFullscreen = !!document.fullscreenElement;
       fullscreenBtn.textContent = isFullscreen ? "Minimize" : "Fullscreen";
+      if (isFullscreen) {
+        canvas.classList.add("fullscreen");
+      } else {
+        canvas.classList.remove("fullscreen");
+      }
     });
 
     function draw() {
