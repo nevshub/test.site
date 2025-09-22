@@ -26,27 +26,24 @@
       margin: 5px;
       border-radius: 5px;
       display: inline-block;
-      text-decoration: none;
     }
     .button:hover { opacity: 0.85; }
     #customization { margin: 30px 0; text-align: left; display: inline-block; }
     #customization label { display: block; margin-bottom: 10px; }
     #donationSection, #progressSection { margin-top: 30px; }
-    #visualizerContainer { position: relative; display: inline-block; }
-    #fullscreenButton {
+    #fullscreenBtn {
       position: absolute;
       top: 10px;
       right: 10px;
-      padding: 5px 10px;
-      font-size: 0.9em;
-      cursor: pointer;
+      z-index: 100;
       background-color: #ff6600;
       border: none;
-      border-radius: 5px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
       color: #fff;
     }
-    #fullscreenButton:hover { opacity: 0.85; }
-    canvas { border-radius: 8px; background-color: #111; display: block; }
+    #fullscreenBtn:hover { background-color: #ff8533; }
   </style>
 </head>
 <body>
@@ -59,11 +56,9 @@
     <div id="playlist"></div>
   </div>
 
-  <!-- Visualizer with Fullscreen -->
-  <div id="visualizerContainer">
-    <canvas id="visualizer"></canvas>
-    <button id="fullscreenButton">Full Screen</button>
-  </div>
+  <!-- Visualizer -->
+  <canvas id="visualizer"></canvas>
+  <button id="fullscreenBtn">Fullscreen</button>
 
   <!-- Customization Panel -->
   <div id="customization">
@@ -79,6 +74,10 @@
     <label>
       Sensitivity:
       <input type="range" id="sensitivity" min="10" max="256" value="64">
+    </label>
+    <label>
+      Height Scale:
+      <input type="range" id="heightScale" min="0.2" max="1.5" step="0.05" value="1">
     </label>
   </div>
 
@@ -111,9 +110,10 @@
     const playlist = document.getElementById("playlist");
     const canvas = document.getElementById("visualizer");
     const ctx = canvas.getContext("2d");
-    const fullscreenButton = document.getElementById("fullscreenButton");
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
+    const heightScaleInput = document.getElementById("heightScale");
 
-    canvas.width = window.innerWidth * 0.9;
+    canvas.width = window.innerWidth;
     canvas.height = 400;
 
     let audioCtx, analyser, source, dataArray;
@@ -122,6 +122,7 @@
     let rotationAngle = 0;
     let hueOffset = 0;
 
+    // Sparkle storage for fade effect
     const sparkles = [];
 
     fileInput.addEventListener("change", () => {
@@ -160,16 +161,27 @@
       analyser.getByteFrequencyData(dataArray);
 
       const bgColor = document.getElementById("bgColor").value;
-      const barWidth = document.getElementById("barWidth").value;
-      const sensitivity = document.getElementById("sensitivity").value;
+      const barWidth = parseFloat(document.getElementById("barWidth").value);
+      const sensitivity = parseFloat(document.getElementById("sensitivity").value);
+      const heightScale = parseFloat(heightScaleInput.value);
 
+      // Update canvas height with heightScale
+      canvas.height = (document.fullscreenElement ? screen.height : 400) * heightScale;
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const baseRadius = 80 + beatLevel * 100 * heightScale;
+      const totalBars = 60;
+
+      // Background
       ctx.fillStyle = bgColor + 'DD';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      // Smooth values
       for (let i = 0; i < dataArray.length; i++) {
         smoothedValues[i] += (dataArray[i] - smoothedValues[i]) * 0.1;
       }
 
+      // Bass detection
       let bassSum = 0;
       const bassCount = Math.floor(dataArray.length / 10);
       for (let i = 0; i < bassCount; i++) bassSum += smoothedValues[i];
@@ -178,15 +190,11 @@
       rotationAngle += 0.01 + beatLevel * 0.05;
       hueOffset += 1 + beatLevel * 3;
 
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      const baseRadius = 80 + beatLevel * 100;
-      const totalBars = 60;
-
       ctx.save();
       ctx.translate(centerX, centerY);
       ctx.rotate(rotationAngle);
 
+      // Electric circle bars
       for (let i = 0; i < totalBars; i++) {
         const bassIndex = Math.floor(i * 2);
         const hiHatIndex = dataArray.length - totalBars + i;
@@ -205,14 +213,12 @@
       }
       ctx.restore();
 
+      // High-hat sparkles
       const highHatSum = dataArray.slice(-60).reduce((a,b) => a+b,0) / 60 / 255;
       const sparkleCount = 40;
       for (let i = 0; i < sparkleCount; i++) {
-        if (!sparkles[i]) {
-          sparkles[i] = { alpha: 0, angle: (i / sparkleCount) * 2*Math.PI };
-        }
+        if (!sparkles[i]) sparkles[i] = { alpha: 0, angle: (i / sparkleCount) * 2*Math.PI };
         sparkles[i].alpha += (Math.random() * 0.05 + highHatSum*0.2 - sparkles[i].alpha) * 0.1;
-
         const radius = baseRadius + 120 + Math.sin(Date.now()/200 + i) * 10 + highHatSum*50;
         const hue = (hueOffset + i*5) % 360;
         ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${sparkles[i].alpha})`;
@@ -224,41 +230,22 @@
 
     draw();
 
-    // Fullscreen / Minimize functionality
-    fullscreenButton.addEventListener('click', () => {
+    // Fullscreen toggle
+    fullscreenBtn.addEventListener("click", () => {
       if (!document.fullscreenElement) {
-        canvas.requestFullscreen().catch(err => {
-          alert(`Error attempting to enable full-screen mode: ${err.message}`);
-        });
-        fullscreenButton.textContent = 'Minimize';
+        canvas.requestFullscreen();
       } else {
         document.exitFullscreen();
-        fullscreenButton.textContent = 'Full Screen';
       }
     });
 
-    // Resize canvas if window changes while not in fullscreen
-    window.addEventListener('resize', () => {
-      if (!document.fullscreenElement) {
-        canvas.width = window.innerWidth * 0.9;
-        canvas.height = 400;
-      } else {
-        canvas.width = screen.width;
-        canvas.height = screen.height;
-      }
+    window.addEventListener("resize", () => {
+      canvas.width = window.innerWidth;
     });
 
-    // Adjust canvas size when entering/exiting fullscreen
-    document.addEventListener('fullscreenchange', () => {
-      if (document.fullscreenElement) {
-        canvas.width = screen.width;
-        canvas.height = screen.height;
-      } else {
-        canvas.width = window.innerWidth * 0.9;
-        canvas.height = 400;
-      }
+    document.addEventListener("fullscreenchange", () => {
+      canvas.width = window.innerWidth;
     });
-
   </script>
 </body>
 </html>
