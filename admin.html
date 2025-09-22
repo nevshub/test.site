@@ -45,6 +45,7 @@
       cursor: pointer;
     }
     #minimizeBtn { display: none; }
+    canvas { display: block; margin: 0 auto; background-color: #111; border-radius: 8px; width: 100%; max-width: 700px; height: 400px; }
   </style>
 </head>
 <body>
@@ -111,21 +112,18 @@
     const fullscreenBtn = document.getElementById("fullscreenBtn");
     const minimizeBtn = document.getElementById("minimizeBtn");
 
+    const bgColorInput = document.getElementById("bgColor");
+    const barWidthInput = document.getElementById("barWidth");
+    const sensitivityInput = document.getElementById("sensitivity");
+
     let audioCtx, analyser, source, dataArray;
     const smoothedValues = [];
     let beatLevel = 0;
     let rotationAngle = 0;
     let hueOffset = 0;
     const sparkles = [];
-    let isFullscreen = false;
 
-    function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = isFullscreen ? window.innerHeight : 400;
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
+    // Music Player
     fileInput.addEventListener("change", () => {
       playlist.innerHTML = "";
       Array.from(fileInput.files).forEach((file, index) => {
@@ -155,28 +153,35 @@
       }
     }
 
+    // Fullscreen / Minimize
     fullscreenBtn.onclick = () => {
-      isFullscreen = true;
-      resizeCanvas();
-      fullscreenBtn.style.display = 'none';
-      minimizeBtn.style.display = 'block';
+      if (canvas.requestFullscreen) canvas.requestFullscreen();
+      else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
+      else if (canvas.msRequestFullscreen) canvas.msRequestFullscreen();
     };
 
     minimizeBtn.onclick = () => {
-      isFullscreen = false;
-      resizeCanvas();
-      fullscreenBtn.style.display = 'block';
-      minimizeBtn.style.display = 'none';
+      if (document.exitFullscreen) document.exitFullscreen();
     };
+
+    document.addEventListener("fullscreenchange", () => {
+      if (!document.fullscreenElement) {
+        fullscreenBtn.style.display = 'block';
+        minimizeBtn.style.display = 'none';
+      } else {
+        fullscreenBtn.style.display = 'none';
+        minimizeBtn.style.display = 'block';
+      }
+    });
 
     function draw() {
       requestAnimationFrame(draw);
       if (!analyser) return;
 
       analyser.getByteFrequencyData(dataArray);
-      const bgColor = document.getElementById("bgColor").value;
-      const barWidthInput = document.getElementById("barWidth").value;
-      const sensitivityInput = document.getElementById("sensitivity").value;
+      const bgColor = bgColorInput.value;
+      const barWidth = barWidthInput.value;
+      const sensitivity = sensitivityInput.value;
 
       ctx.fillStyle = bgColor + 'DD';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -209,7 +214,7 @@
         const bassIndex = Math.floor(i * 2);
         const hiHatIndex = dataArray.length - totalBars + i;
         const value = (smoothedValues[bassIndex] + smoothedValues[hiHatIndex]) / 2;
-        const barLength = value * (sensitivityInput / 64) * heightScale;
+        const barLength = value * (sensitivity / 64) * heightScale;
         const angle = (i / totalBars) * 2 * Math.PI;
         const hue = (hueOffset + value) % 360;
 
@@ -218,7 +223,7 @@
         ctx.shadowColor = ctx.fillStyle;
 
         ctx.rotate(angle);
-        ctx.fillRect(baseRadius, -barWidthInput/2 * heightScale, barLength, barWidthInput * heightScale);
+        ctx.fillRect(baseRadius, -barWidth/2 * heightScale, barLength, barWidth * heightScale);
         ctx.rotate(-angle);
       }
       ctx.restore();
@@ -233,12 +238,12 @@
         const hue = (hueOffset + i*5) % 360;
         ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${sparkles[i].alpha})`;
         ctx.beginPath();
-ctx.arc(centerX + radius * Math.cos(sparkles[i].angle), centerY + radius * Math.sin(sparkles[i].angle), 3 * heightScale, 0, 2*Math.PI);
-ctx.fill();
-}
-}
+        ctx.arc(centerX + radius * Math.cos(sparkles[i].angle), centerY + radius * Math.sin(sparkles[i].angle), 3 * heightScale, 0, 2*Math.PI);
+        ctx.fill();
+      }
+    }
 
-draw();
+    draw();
   </script>
 </body>
 </html>
