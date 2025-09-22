@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #111;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      min-height: 100vh;
+    }
+    h1, h2 { margin-bottom: 20px; }
+    #player { margin-bottom: 20px; }
+    #playlist { margin-top: 10px; }
+    .button {
+      background-color: #ff6600;
+      border: none;
+      padding: 10px 20px;
+      color: #fff;
+      cursor: pointer;
+      margin: 5px;
+      border-radius: 5px;
+      display: inline-block;
+    }
+    .button:hover { opacity: 0.85; }
+    #customization { margin: 30px 0; text-align: left; display: inline-block; }
+    #customization label { display: block; margin-bottom: 10px; }
+    #donationSection, #progressSection { margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <h1>Admin Panel</h1>
+
+  <!-- Music Player -->
+  <div id="player">
+    <audio id="audio" controls></audio>
+    <input type="file" id="fileInput" accept="audio/*" multiple>
+    <div id="playlist"></div>
+  </div>
+
+  <!-- Visualizer -->
+  <canvas id="visualizer"></canvas>
+
+  <!-- Customization Panel -->
+  <div id="customization">
+    <h2>Customization</h2>
+    <label>
+      Background Color:
+      <input type="color" id="bgColor" value="#111111">
+    </label>
+    <label>
+      Bar Width:
+      <input type="range" id="barWidth" min="1" max="10" value="4">
+    </label>
+    <label>
+      Sensitivity:
+      <input type="range" id="sensitivity" min="10" max="256" value="64">
+    </label>
+  </div>
+
+  <!-- Donation Section -->
+  <div id="donationSection">
+    <h2>Donation Settings</h2>
+    <p>Click below to donate via Cash App.</p>
+    <button id="donateButton" class="button"
+            onclick="window.open('https://cash.app/$YourCashtag', '_blank')">
+      Donate Now
+    </button>
+  </div>
+
+  <!-- What's in Progress -->
+  <div id="progressSection">
+    <h2>What’s in Progress</h2>
+    <ul>
+      <li>Donation button integration with CashApp is prepared and ready to be connected.</li>
+      <li>A message box for submitting requests — updates or expansions to the website — will be added to the Admin Panel soon.</li>
+    </ul>
+  </div>
+
+  <div class="button-container">
+    <a href="index.html" class="button">Back to Home</a>
+  </div>
+
+  <script>
+    const audio = document.getElementById("audio");
+    const fileInput = document.getElementById("fileInput");
+    const playlist = document.getElementById("playlist");
+    const canvas = document.getElementById("visualizer");
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = window.innerWidth;
+    canvas.height = 400;
+
+    let audioCtx, analyser, source, dataArray;
+    const smoothedValues = [];
+    let beatLevel = 0;
+    let rotationAngle = 0;
+    let hueOffset = 0;
+
+    // Sparkle storage for fade effect
+    const sparkles = [];
+
+    fileInput.addEventListener("change", () => {
+      playlist.innerHTML = "";
+      Array.from(fileInput.files).forEach((file, index) => {
+        const item = document.createElement("div");
+        item.textContent = file.name;
+        item.classList.add("playlist-item");
+        item.onclick = () => loadTrack(file);
+        playlist.appendChild(item);
+        if (index === 0) loadTrack(file);
+      });
+    });
+
+    function loadTrack(file) {
+      const url = URL.createObjectURL(file);
+      audio.src = url;
+      audio.play();
+
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        source = audioCtx.createMediaElementSource(audio);
+        source.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        analyser.fftSize = 512;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        for (let i = 0; i < analyser.frequencyBinCount; i++) smoothedValues[i] = 0;
+      }
+    }
+
+    function draw() {
+      requestAnimationFrame(draw);
+      if (!analyser) return;
+
+      analyser.getByteFrequencyData(dataArray);
+
+      const bgColor = document.getElementById("bgColor").value;
+      const barWidth = document.getElementById("barWidth").value;
+      const sensitivity = document.getElementById("sensitivity").value;
+
+      // Background
+      ctx.fillStyle = bgColor + 'DD';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Smooth values
+      for (let i = 0; i < dataArray.length; i++) {
+        smoothedValues[i] += (dataArray[i] - smoothedValues[i]) * 0.1;
+      }
+
+      // Bass detection
+      let bassSum = 0;
+      const bassCount = Math.floor(dataArray.length / 10);
+      for (let i = 0; i < bassCount; i++) bassSum += smoothedValues[i];
+      beatLevel = bassSum / bassCount / 255;
+
+      rotationAngle += 0.01 + beatLevel * 0.05;
+      hueOffset += 1 + beatLevel * 3;
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const baseRadius = 80 + beatLevel * 100;
+      const totalBars = 60;
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(rotationAngle);
+
+      // Electric circle bars
+      for (let i = 0; i < totalBars; i++) {
+        const bassIndex = Math.floor(i * 2);
+        const hiHatIndex = dataArray.length - totalBars + i;
+        const value = (smoothedValues[bassIndex] + smoothedValues[hiHatIndex]) / 2;
+        const barLength = value * (sensitivity / 64);
+        const angle = (i / totalBars) * 2 * Math.PI;
+        const hue = (hueOffset + value) % 360;
+
+        ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+        ctx.shadowBlur = 15 + beatLevel * 30;
+        ctx.shadowColor = ctx.fillStyle;
+
+        ctx.rotate(angle);
+        ctx.fillRect(baseRadius, -barWidth/2, barLength, barWidth);
+        ctx.rotate(-angle);
+      }
+      ctx.restore();
+
+      // High-hat sparkles with fading
+      const highHatSum = dataArray.slice(-60).reduce((a,b) => a+b,0) / 60 / 255;
+      const sparkleCount = 40;
+      for (let i = 0; i < sparkleCount; i++) {
+        if (!sparkles[i]) {
+          sparkles[i] = { alpha: 0, angle: (i / sparkleCount) * 2*Math.PI };
+        }
+
+        // Fade in/out
+        sparkles[i].alpha += (Math.random() * 0.05 + highHatSum*0.2 - sparkles[i].alpha) * 0.1;
+
+        const radius = baseRadius + 120 + Math.sin(Date.now()/200 + i) * 10 + highHatSum*50;
+        const hue = (hueOffset + i*5) % 360;
+        ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${sparkles[i].alpha})`;
+        ctx.beginPath();
+        ctx.arc(centerX + radius * Math.cos(sparkles[i].angle), centerY + radius * Math.sin(sparkles[i].angle), 3, 0, 2*Math.PI);
+        ctx.fill();
+      }
+    }
+
+    draw();
+  </script>
+</body>
+</html>
